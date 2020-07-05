@@ -1,0 +1,121 @@
+<?xml version="1.0"?>
+
+<project name="ESA-Buildmanagement" default="main" basedir=".">
+
+    <!-- Definition von Platzhaltern -->
+    <property name="git-bin-path" location="/usr/bin/git" />
+    <property name="git-url" value="https://github.com/fbenko-csbh/swt-esaBuildmanagement-Codebasis.git" />
+
+    <property name="src.dir" location="src" />
+    <property name="build.dir" location="bin" />
+    <property name="dist.dir" location="dist" />
+    <property name="docs.dir" location="docs" />
+
+    <!-- Definition GIT Task-Template -->
+    <macrodef name="git">
+        <attribute name="command" />
+        <attribute name="dir" default="" />
+        <element name="args" optional="true" />
+        <sequential>
+            <echo message = "git @{command}" />
+            <exec executable = "${git-bin-path}" dir="@{dir}">
+                <arg value = "@{command}" /> 
+                <args/>
+            </exec>
+        </sequential>
+    </macrodef>
+
+   <!-- Klont bestehendes Git-Repository -->
+    <target name="get">
+        <delete dir="${src.dir}" />
+        <mkdir dir="${src.dir}" /> 
+        <git command = "clone">
+            <args>
+                <arg value = "${git-url}" />
+                <arg value = "${src.dir}" />
+            </args>
+        </git>
+    </target>
+
+    <!-- Platzhalter fuer JUnit-Testing -->
+    <property name="test.dir" location="src" />
+    <property name="test.report.dir" location="testreport" />
+
+    <!-- classpath fuer junit.jar und die kompilierten Klassen -->
+    <path id="junit.class.path">
+        <pathelement location="/usr/share/java/junit4.jar" />
+        <pathelement location="${build.dir}" />
+    </path>
+
+    <!-- Loescht bestehende build, docs, dist und testreport Ordner -->  
+    <target name="clean">
+        <delete dir="${build.dir}" />
+        <delete dir="${docs.dir}" />
+        <delete dir="${dist.dir}" />
+        <delete dir="${test.report.dir}" />
+    </target>
+
+    <!-- Erstellt build, docs, dist und testreport Ordner -->
+    <target name="makedir">
+        <mkdir dir="${build.dir}" />
+        <mkdir dir="${docs.dir}" />
+        <mkdir dir="${dist.dir}" /> 
+        <mkdir dir="${test.report.dir}" />
+    </target>
+
+    <!-- Kompiliert java code (inkl. Einbindung von JUnit) -->
+    <target name="compile" depends="clean, makedir">
+        <javac includeantruntime="false" srcdir="${src.dir}" destdir="${build.dir}">
+            <classpath refid="junit.class.path" />
+        </javac>
+    </target>
+
+    <!-- Erstellt Javadoc -->
+    <target name="doc" depends="compile">
+        <javadoc packagenames="src" sourcepath="${src.dir}" destdir="${docs.dir}">
+            <!-- Welche Dateien sollen eingebunden werden: alle in "main" -->
+            <fileset dir="${src.dir}\main">
+                <include name="**" />
+            </fileset>
+        </javadoc> 
+    </target>
+
+    <!-- Erstellt jar-Datei -->
+    <target name="jar" depends="compile">
+        <jar destfile="${dist.dir}\de.fbenko.esa9.jar" basedir="${build.dir}">
+            <manifest>
+                    <attribute name="Main-Class" value="test.Main" /> 
+            </manifest>
+        </jar>
+    </target>
+
+    <!-- JUnit Tests -->
+    <target name="test" depends="compile">
+        <junit printsummary="on" fork="true" haltonfailure="yes">
+            <classpath refid="junit.class.path" />
+            <formatter type="xml" />
+            <batchtest todir="${test.report.dir}">
+                <fileset dir="${src.dir}">
+                    <include name="**/*Test*.java" />
+                </fileset>
+            </batchtest>
+        </junit>
+    </target>
+
+    <!-- Fuehrt jar-Datei aus -->
+    <target name="run" depends="compile, jar">
+        <java jar="dist/de.fbenko.esa9.jar" fork="true" failonerror="true" maxmemory="128m">
+            <arg value="-h"/>
+            <classpath>
+                <pathelement location="dist/de.fbenko.esa9.jar"/>
+                <pathelement path="${java.class.path}"/>
+            </classpath>
+        </java>
+    </target>
+
+
+    <target name="main" depends="compile, doc, test, jar">
+        <description>Main target</description>
+    </target>
+
+</project>
